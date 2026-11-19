@@ -11,7 +11,7 @@ import argparse, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from common import load_json, run, save_json, tool
-from style import border_graph, font_for, fontsdir_opt
+from style import border_graph, font_for, fontsdir_opt, norm_text, profile, text_px, wrap_px
 
 W, H = 1080, 1920
 
@@ -65,66 +65,76 @@ def balanced_wrap(text, width):
     return lines
 
 
-# GTA look: Pricedown when installed (Latin text only), else the bundled Bangers; white letters, thick black
-# outline, purple drop shadow, active word in GTA VI pink; the hook gets a sunset gradient (yellow > orange > pink).
+# GTA look: Pricedown when installed (Latin text only), else the bundled Bangers; Black Han Sans for Korean,
+# Dela Gothic One for Japanese. White letters, thick black outline, purple drop shadow, active word in GTA VI pink;
+# the hook gets a sunset gradient (yellow > orange > pink). Sizes and line breaks come from style.profile().
 PINK, ORANGE, YELLOW, PURPLE_SH = "&H00A43FFF", "&H002E9AFF", "&H006AF0FF", "&H00501A3A"
-CAP_SIZE, HOOK_SIZE = 160, 176
-HOOK_TOP, HOOK_LH, HOOK_CHARS = 250, 140, 20
-# capital-letter band (top, bottom) relative to the \an5 anchor, as a fraction of the font size.
-# Measured for Bangers (small caps inside a tall line box); Pricedown's caps fill more of the em.
-CAP_BAND = {"Bangers": (-0.147, 0.293)}
-CAP_BAND_DEFAULT = (-0.30, 0.34)
+HOOK_TOP = 250
+TEXT_MAX_PX = 900   # widest line inside the neon border
 
 
-def gta_hook(hook, end, font="Bangers"):
+def gta_hook(hook, start, end, font="Bangers", y0=HOOK_TOP, style="Hook", fade=True):
     """Hook lines with a 3-band sunset gradient: one outlined base layer + two clipped fill layers per line."""
+    p = profile(font)
     ev = []
-    lines = balanced_wrap(esc(hook).upper(), HOOK_CHARS)
-    pop = "\\fscx92\\fscy92\\t(0,120,\\fscx100\\fscy100)"
-    top, bot = CAP_BAND.get(font, CAP_BAND_DEFAULT)
-    top, bot = top * HOOK_SIZE, bot * HOOK_SIZE
+    lines = wrap_px(norm_text(esc(hook), font).upper(), font, p["hook"], TEXT_MAX_PX)
+    pop = "\\fscx92\\fscy92\\t(0,120,\\fscx100\\fscy100)" if fade else ""
+    top, bot = p["band"]
+    top, bot = top * p["hook"], bot * p["hook"]
     third = (bot - top) / 3
+    fad = "\\fad(120,180)" if fade else ""
     for i, ln in enumerate(lines):
-        y = HOOK_TOP + i * HOOK_LH
-        pos = f"\\an5\\pos({W // 2},{y})\\fad(0,180){pop}"
-        ev.append(f"Dialogue: 1,{ts(0)},{ts(end)},Hook,,0,0,0,,{{{pos}\\1c{PINK}}}{ln}")
+        y = y0 + i * p["hook_lh"]
+        pos = f"\\an5\\pos({W // 2},{y}){fad}{pop}"
+        ev.append(f"Dialogue: 1,{ts(start)},{ts(end)},{style},,0,0,0,,{{{pos}\\1c{PINK}}}{ln}")
         b1, b2 = int(y + top + third), int(y + top + 2 * third)
-        for (y1, y2, col) in ((y - HOOK_SIZE, b1, YELLOW), (b1, b2, ORANGE)):
-            ev.append(f"Dialogue: 2,{ts(0)},{ts(end)},Hook,,0,0,0,,"
+        for (y1, y2, col) in ((y - p["hook"], b1, YELLOW), (b1, b2, ORANGE)):
+            ev.append(f"Dialogue: 2,{ts(start)},{ts(end)},{style},,0,0,0,,"
                       f"{{{pos}\\bord0\\shad0\\1c{col}\\clip(0,{y1},{W},{y2})}}{ln}")
     return ev
 
 
-def build_ass(words, s0, e0, hook, cap_y, title=None, caps='word', profanity=False, font='auto'):
-    f = font_for(hook, title[1] if title else "", " ".join(w.get("w", "") for w in words), font=font)
+def title_lines(text, font, style):
+    p = profile(font)
+    size = p["title_box"] if style == "box" else p["hook"]
+    return wrap_px(norm_text(esc(text), font).upper(), font, size, TEXT_MAX_PX)
+
+
+def build_ass(words, s0, e0, hook, cap_y, title=None, caps='word', profanity=False, font='auto',
+              hook_secs=2.6, outro=None, outro_secs=2.6, outro_y=None):
+    f = font_for(hook, title[1] if title else "", outro or "", " ".join(w.get("w", "") for w in words), font=font)
+    p = profile(f)
+    join = p["join"]
     hdr = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W}
 PlayResY: {H}
-WrapStyle: 0
+WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{f},{CAP_SIZE},&H00FFFFFF,&H00FFFFFF,&H00000000,{PURPLE_SH},0,0,0,0,100,100,2,0,1,10,6,5,60,60,0,1
-Style: Hook,{f},{HOOK_SIZE},&H00FFFFFF,&H00FFFFFF,&H00000000,{PURPLE_SH},0,0,0,0,100,100,2,0,1,12,7,5,60,60,0,1
-Style: TitleBox,{f},100,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,0,0,0,0,100,100,1,0,1,0,0,5,40,40,0,1
-Style: TitleOut,{f},128,&H00FFFFFF,&H00FFFFFF,&H00000000,{PURPLE_SH},0,0,0,0,100,100,2,0,1,9,5,8,50,50,0,1
-Style: Bubble,{f},66,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,0,0,0,0,100,100,1,0,3,16,0,5,60,60,0,1
+Style: Cap,{f},{p['cap']},&H00FFFFFF,&H00FFFFFF,&H00000000,{PURPLE_SH},0,0,0,0,100,100,{p['spacing']},0,1,10,6,5,60,60,0,1
+Style: Hook,{f},{p['hook']},&H00FFFFFF,&H00FFFFFF,&H00000000,{PURPLE_SH},0,0,0,0,100,100,{p['spacing']},0,1,12,7,5,60,60,0,1
+Style: TitleBox,{f},{p['title_box']},&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,0,0,0,0,100,100,1,0,1,0,0,5,40,40,0,1
+Style: Bubble,{f},{p['bubble']},&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,0,0,0,0,100,100,1,0,3,16,0,5,60,60,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     ev = []
-    ws = [dict(w, w=clean(w["w"], profanity)) for w in words if s0 <= w["s"] < e0 and w["w"]]
-    # groups of up to 3 words, break on punctuation or pauses
+    ws = [dict(w, w=norm_text(clean(w["w"], profanity), f)) for w in words if s0 <= w["s"] < e0 and w["w"]]
+    # caption groups: up to 3 words (more short CJK chunks) that fit one line; break on punctuation or pauses
     groups, cur = [], []
     for w in ws:
-        if cur and (len(cur) == 3 or w["s"] - cur[-1]["e"] > 0.6 or cur[-1]["w"][-1:] in ".?!,"):
-            groups.append(cur); cur = []
+        if cur:
+            cand = join.join(x["w"] for x in cur + [w]).upper()
+            if (len(cur) == p["group"] or w["s"] - cur[-1]["e"] > 0.6 or cur[-1]["w"][-1:] in ".?!,。！？、"
+                    or text_px(cand, f, p["cap"] * 1.08) > TEXT_MAX_PX):
+                groups.append(cur); cur = []
         cur.append(w)
     if cur:
         groups.append(cur)
-    hook_end = 2.6 if hook else 0
+    hook_end = hook_secs if hook else 0
     for gi, g in enumerate(groups):
         g_end = groups[gi + 1][0]["s"] if gi + 1 < len(groups) else g[-1]["e"] + 0.4
         g_end = min(g_end, g[-1]["e"] + 0.8)
@@ -139,23 +149,27 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             pop = "{\\fscx112\\fscy112\\t(0,90,\\fscx100\\fscy100)}" if k == 0 else ""
             if caps == 'bubble':
                 if k == 0:
-                    txt = esc(' '.join(x['w'] for x in g)).strip()
+                    txt = esc(join.join(x['w'] for x in g)).strip()
                     txt = txt[:1].upper() + txt[1:]
                     ev.append(f"Dialogue: 0,{ts(a)},{ts(g_end - s0)},Bubble,,0,0,0,,{{\\pos({W // 2},{cap_y})}}{pop}{txt}")
                 continue
-            ev.append(f"Dialogue: 0,{ts(a)},{ts(b)},Cap,,0,0,0,,{{\\pos({W // 2},{cap_y})}}{pop}{' '.join(parts)}")
+            ev.append(f"Dialogue: 0,{ts(a)},{ts(b)},Cap,,0,0,0,,{{\\pos({W // 2},{cap_y})}}{pop}{join.join(parts)}")
     if title:  # reaction title: (style, text, y, seconds)
         st, text, ty, secs = title
         end = (e0 - s0) if secs <= 0 else secs
-        lines = balanced_wrap(esc(text).upper(), 26 if st == 'box' else 22)
-        body = '\\N'.join(lines)
         if st == 'box':
+            body = '\\N'.join(title_lines(text, f, 'box'))
             ev.append(f"Dialogue: 2,{ts(0)},{ts(end)},TitleBox,,0,0,0,,{{\\pos({W // 2},{ty})}}{body}")
-        else:
-            ev.append(f"Dialogue: 2,{ts(0)},{ts(end)},TitleOut,,0,0,0,,{{\\pos({W // 2},{ty})\\an8}}{body}")
+        else:  # outline: the same sunset-gradient lettering as the hook, centred on the seam
+            n = len(title_lines(text, f, 'outline'))
+            ev += gta_hook(text, 0, end, f, y0=int(ty - (n - 1) * p["hook_lh"] / 2), fade=False)
         hook = ''
     if hook:
-        ev += gta_hook(hook, hook_end, f)
+        ev += gta_hook(hook, 0, hook_end, f)
+    if outro:
+        dur = e0 - s0
+        oy = HOOK_TOP if outro_y is None else outro_y
+        ev += gta_hook(outro, max(0, dur - outro_secs), dur, f, y0=oy)
     return hdr + "\n".join(ev) + "\n"
 
 
@@ -257,6 +271,9 @@ def main():
     ap.add_argument("--allow-profanity", action="store_true", help="keep swear words in captions (slurs are always masked)")
     ap.add_argument("--cam", default="auto", help="auto (find the webcam) or x:y:w:h fractions")
     ap.add_argument("--start", type=float); ap.add_argument("--end", type=float)
+    ap.add_argument("--outro", default="", help="closing line shown (sunset gradient) over the last seconds")
+    ap.add_argument("--voice-hook", help="mp3/wav of a stock or TTS voice reading the hook, played at the start")
+    ap.add_argument("--voice-outro", help="mp3/wav of a stock or TTS voice reading the outro, played at the end")
     a = ap.parse_args()
     d = Path(a.job); c = load_json(d / "candidates.json")
     pick = next(x for x in c["candidates"] if x["n"] == a.pick)
@@ -303,17 +320,26 @@ def main():
     cap_y = CAP_Y[layout]
     title, band = None, None
     if a.title and layout == 'react':
-        n = len(wrap(a.title, 26 if a.title_style == 'box' else 24))
+        tf = font_for(a.title, font=a.font)
+        n = len(title_lines(a.title, tf, a.title_style))
         if a.title_style == 'box':
-            bh = n * 78 + 44
+            bh = int(n * profile(tf)["title_box"] * profile(tf)["box_lh"]) + 44
             band = (TOP - bh // 2, bh, a.title_secs)
             title = ('box', a.title, TOP, a.title_secs)
         else:
             title = ('outline', a.title, TOP + 40, a.title_secs)
+    from common import ffprobe as _probe
+    vdur = lambda f: float(_probe(f)["format"]["duration"]) if f else 0.0
+    hook_vo, outro_vo = vdur(a.voice_hook), vdur(a.voice_outro)
+    hook_secs = max(2.6, hook_vo + 0.5)
+    outro_secs = max(2.4, outro_vo + 0.4) if a.outro else 0
+    outro_y = 1090 if layout == 'react' else None
     ass = out / f"clip_{a.pick}.ass"
     caps = a.captions
     cap_words = words if caps != 'none' else []
-    ass.write_text(build_ass(cap_words, s0, e0, a.hook, cap_y, title=title, caps=caps, profanity=a.allow_profanity, font=a.font), encoding="utf-8")
+    ass.write_text(build_ass(cap_words, s0, e0, a.hook, cap_y, title=title, caps=caps, profanity=a.allow_profanity, font=a.font,
+                             hook_secs=hook_secs, outro=a.outro or None, outro_secs=outro_secs, outro_y=outro_y),
+                   encoding="utf-8")
     src = None; gx = None
     if layout == 'react':
         from common import ffprobe
@@ -322,12 +348,35 @@ def main():
         gx = game_offset(c['source'], s0, e0, src, [float(t) for t in cam.split(':')])
     v = video_filter(layout, cam, ass, band=band, cam_side=side, src=src, game_x=gx, face_expr=face_expr, border=a.border)
     mp4 = out / f"clip_{a.pick}.mp4"
-    run([tool("ffmpeg"), "-y", "-v", "error", "-ss", f"{s0:.2f}", "-to", f"{e0:.2f}", "-i", c["source"],
-         "-filter_complex", v, "-map", "[vo]", "-map", "0:a?", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
-         "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
+    cmd = [tool("ffmpeg"), "-y", "-v", "error", "-ss", f"{s0:.2f}", "-to", f"{e0:.2f}", "-i", c["source"]]
+    if a.voice_hook or a.voice_outro:
+        # voiceover: original audio ducked to 25 % while the voice speaks, then mixed and normalised
+        dur = e0 - s0
+        o0 = max(0.0, dur - outro_vo - 0.25)
+        duck = []
+        if a.voice_hook:
+            duck.append(f"between(t,0,{hook_vo + 0.25:.2f})")
+        if a.voice_outro:
+            duck.append(f"gte(t,{o0 - 0.1:.2f})")
+        af = f"[0:a]volume='if({'+'.join(duck)},0.25,1)':eval=frame[bed]"
+        mix, k = ["[bed]"], 1
+        if a.voice_hook:
+            cmd += ["-i", a.voice_hook]
+            af += f";[{k}:a]aresample=48000,adelay=150|150,apad[vh]"; mix.append("[vh]"); k += 1
+        if a.voice_outro:
+            cmd += ["-i", a.voice_outro]
+            ms = int(o0 * 1000)
+            af += f";[{k}:a]aresample=48000,adelay={ms}|{ms},apad[vx]"; mix.append("[vx]"); k += 1
+        af += (f";{''.join(mix)}amix=inputs={len(mix)}:duration=first:normalize=0,"
+               f"loudnorm=I=-14:TP=-1.5:LRA=11[ao]")
+        cmd += ["-filter_complex", v + ";" + af, "-map", "[vo]", "-map", "[ao]"]
+    else:
+        cmd += ["-filter_complex", v, "-map", "[vo]", "-map", "0:a?", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11"]
+    run(cmd + ["-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
          "-ar", "48000", "-movflags", "+faststart", str(mp4)])
     info = c.get("info", {})
     save_json(out / f"clip_{a.pick}.json", {"file": str(mp4), "start": s0, "end": e0, "layout": layout, "hook": a.hook or a.title, "title": a.title, "cam": cam, "border": a.border, "font": a.font,
+                                            "outro": a.outro, "voice_hook": a.voice_hook, "voice_outro": a.voice_outro,
                                             "source_url": info.get("webpage_url"), "source_title": info.get("title"),
                                             "source_channel": info.get("channel") or info.get("uploader")})
     print(mp4)

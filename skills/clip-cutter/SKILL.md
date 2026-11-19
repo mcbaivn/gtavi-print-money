@@ -31,6 +31,19 @@ Every clip gets the channel's signature look, no flag needed:
   themselves. Force one with `--font bangers` or `--font pricedown`.
 - The border and font are saved in `clip_<n>.json`, so `multilang` versions keep the same look.
 
+## Outro line and voiceover
+
+- `--outro "Follow for part 2!"` shows a closing line in the same sunset-gradient lettering over the last seconds.
+- `--voice-hook hook.mp3` / `--voice-outro outro.mp3`: a stock or TTS voice (for example Vibi or edge-tts) reads
+  the hook at the start and the outro at the end; the streamer's audio is ducked to 25 % under the voice, then the
+  mix is normalised to -14 LUFS. The hook and outro stay on screen as long as the voice speaks.
+- Never clone or imitate the streamer's voice: a separate narrator voice only.
+
+## Languages
+
+Korean text uses the bundled Black Han Sans, Japanese uses Dela Gothic One, Vietnamese and Spanish use Bangers
+(all SIL OFL). Line breaks are measured from the real glyph widths, so every language stays inside the neon border.
+
 Before running:
 
 1. Get 3 hook options from the `hook-writer` skill and use the best one.

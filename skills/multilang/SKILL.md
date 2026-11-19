@@ -17,6 +17,7 @@ Output in `jobs/<id>/edits/`: `clip_<n>_<lang>.mp4` per language and one `clip_<
 - `--voice` adds a stock text-to-speech voice (edge-tts: es-ES-AlvaroNeural, pt-BR-AntonioNeural, de-DE-ConradNeural, ru-RU-DmitryNeural, vi-VN-NamMinhNeural) that reads the translated hook only, in the first 2.5 seconds, with the original audio ducked under it.
 - Never clone or imitate a real person's or streamer's voice. Stock voices only, and do not present the voiceover as the creator speaking.
 
+- Korean (`ko`) and Japanese (`ja`) captions use the bundled Black Han Sans and Dela Gothic One fonts; Japanese captions are split into short phrase chunks, since Japanese has no spaces.
 - Vietnamese (`vi`): captions and hook always use the bundled Bangers font, which has every Vietnamese letter (Ắ, Ầ, Ố, Ự...); Pricedown has none. Vietnamese captions get their own hashtags (#GTA6VietNam, #gamevn). Vietnamese GTA pages are a big audience (MixiGaming streams top the GTA 6 trend list), so `vi` is in the default set.
 
 Rules:

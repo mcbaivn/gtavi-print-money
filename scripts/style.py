@@ -58,8 +58,16 @@ def has_vietnamese(*texts):
     return any(_VI.search(t or "") for t in texts)
 
 
+_HANGUL = re.compile(r"[ᄀ-ᇿ㄰-㆏가-힯]")
+_JA = re.compile(r"[぀-ヿ㐀-䶿一-鿿ｦ-ﾟ]")
+
+
 def font_for(*texts, font="auto"):
-    """font: auto | bangers | pricedown."""
+    """font: auto | bangers | pricedown. Korean -> Black Han Sans, Japanese -> Dela Gothic One (both bundled)."""
+    if any(_HANGUL.search(t or "") for t in texts):
+        return "Black Han Sans"
+    if any(_JA.search(t or "") for t in texts):
+        return "Dela Gothic One"
     if font == "bangers" or has_vietnamese(*texts):
         return "Bangers"
     if font in ("auto", "pricedown"):
@@ -67,6 +75,108 @@ def font_for(*texts, font="auto"):
         if pd:
             return pd
     return "Bangers"
+
+
+# per-font sizes, measured in libass: band = capital/glyph band (top, bottom) around the \an5 anchor as a
+# fraction of the font size (used to place the hook's gradient stripes); join = word separator in captions.
+PROFILES = {
+    "Bangers": dict(file="Bangers-Regular.ttf", cap=160, hook=176, hook_lh=140, title_box=100, box_lh=0.78,
+                    bubble=66, band=(-0.147, 0.293), group=3, join=" ", spacing=2),
+    "Black Han Sans": dict(file="BlackHanSans-Regular.ttf", cap=120, hook=112, hook_lh=148, title_box=86, box_lh=1.15,
+                           bubble=60, band=(-0.45, 0.28), group=3, join=" ", spacing=1),
+    "Dela Gothic One": dict(file="DelaGothicOne-Regular.ttf", cap=132, hook=132, hook_lh=150, title_box=82, box_lh=1.2,
+                            bubble=58, band=(-0.31, 0.30), group=4, join="", spacing=0),
+}
+PROFILE_DEFAULT = dict(file=None, cap=150, hook=160, hook_lh=150, title_box=96, box_lh=0.95, bubble=66,
+                       band=(-0.30, 0.34), group=3, join=" ", spacing=2)
+
+
+def profile(font):
+    return PROFILES.get(font, PROFILE_DEFAULT)
+
+
+_FULLWIDTH = str.maketrans({"！": "!", "？": "?", "，": ",", "：": ":", "；": ";", "（": "(", "）": ")"})
+
+
+def norm_text(s, font):
+    """Black Han Sans has no full-width punctuation: use the ASCII forms for Korean."""
+    return s.translate(_FULLWIDTH) if font == "Black Han Sans" else s
+
+
+_ADV = {}
+
+
+def _advances(font):
+    if font in _ADV:
+        return _ADV[font]
+    fn = profile(font)["file"] or "Bangers-Regular.ttf"
+    try:
+        from fontTools.ttLib import TTFont
+        tt = TTFont(str(FONTS_DIR / fn), lazy=True)
+        # libass (like VSFilter) scales a font so that usWinAscent + usWinDescent = the ASS font size
+        os2 = tt["OS/2"]
+        cmap, hmtx, scale = tt.getBestCmap(), tt["hmtx"], (os2.usWinAscent + os2.usWinDescent) or tt["head"].unitsPerEm
+        _ADV[font] = (cmap, hmtx, scale)
+    except Exception:
+        _ADV[font] = None
+    return _ADV[font]
+
+
+def text_px(s, font, size):
+    """Rendered width of s in px (advance widths from the font file; 0.6 em per glyph if unknown)."""
+    adv = _advances(font)
+    sp = profile(font)["spacing"]
+    total = 0.0
+    for ch in s:
+        if adv and ord(ch) in adv[0]:
+            total += adv[1][adv[0][ord(ch)]][0] / adv[2] * size
+        else:
+            total += (1.0 if _JA.search(ch) or _HANGUL.search(ch) else 0.6) * size
+        total += sp
+    return total
+
+
+def _tokens(text, font):
+    """Breakable units: words, or for Japanese short phrase chunks (break after kana runs and punctuation)."""
+    if profile(font)["join"]:
+        return text.split()
+    out, cur = [], ""
+    hira = lambda c: "぀" <= c <= "ゟ"
+    for i, ch in enumerate(text.replace(" ", "")):
+        cur += ch
+        nxt = text.replace(" ", "")[i + 1] if i + 1 < len(text.replace(" ", "")) else ""
+        if ch in "、。！？!?…" or (hira(ch) and nxt and not hira(nxt) and nxt not in "、。！？!?…ー"):
+            out.append(cur); cur = ""
+    return out + ([cur] if cur else [])
+
+
+def wrap_px(text, font, size, max_px, max_lines=3):
+    """Greedy wrap by real width, then rebalance so lines have similar width (no lone last word)."""
+    toks, j = _tokens(text, font), profile(font)["join"]
+    if not toks:
+        return []
+
+    def greedy(limit):
+        lines, cur = [], []
+        for t in toks:
+            if cur and text_px(j.join(cur + [t]), font, size) > limit:
+                lines.append(cur); cur = [t]
+            else:
+                cur.append(t)
+        return lines + ([cur] if cur else [])
+
+    base = greedy(max_px)
+    n = len(base)
+    if n > 1:
+        total = text_px(j.join(toks), font, size)
+        lim = total / n
+        while lim < max_px:
+            alt = greedy(lim)
+            if len(alt) == n:
+                base = alt
+                break
+            lim += 10
+    return [j.join(l) for l in base[:max_lines]]
 
 
 def fontsdir_opt():
