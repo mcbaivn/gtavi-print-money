@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" width="300" alt="GTAVI Print Money logo"></p>
+
 # GTAVI Print Money
 
 **Bộ công cụ cắt clip GTA 6 chạy trong Claude Code.** Tìm video và stream GTA 6 đang hot, bắt đúng khoảnh khắc chat bùng nổ, cắt thành clip dọc 1080x1920 có phụ đề và hook, kiểm tra luật chiến dịch trước khi đăng. Có sẵn bản tiếng Việt.
