@@ -2,7 +2,8 @@
   "name": "gtavi-print-money",
   "description": "GTAVI Print Money: find campaigns, trends and moments, cut captioned vertical clips, check the rules, learn from real numbers.",
   "owner": {
-    "name": "GTAVI Print Money"
+    "name": "GTAVI Print Money",
+    "url": "https://github.com/mcbaivn"
   },
   "plugins": [
     {

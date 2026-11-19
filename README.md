@@ -9,7 +9,7 @@
 ## Cài đặt
 
 ```
-/plugin marketplace add E:/claude/gtavi-print-money
+/plugin marketplace add mcbaivn/gtavi-print-money
 /plugin install gtavi-print-money@gtavi-print-money
 ```
 
