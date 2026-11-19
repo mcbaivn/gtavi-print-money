@@ -13,6 +13,7 @@ Check each with `ffmpeg -version`, `yt-dlp --version`, `python -c "import faster
 
 - ffmpeg. Windows: `winget install --id Gyan.FFmpeg -e --source winget`. macOS: `brew install ffmpeg`. Linux: `sudo apt install -y ffmpeg`
 - Python packages, all systems: `python -m pip install -U -r "${CLAUDE_PLUGIN_ROOT}/requirements.txt"` (faster-whisper, numpy, requests and a fresh yt-dlp; the scripts prefer the pip yt-dlp, because an old yt-dlp gets HTTP 403 from YouTube)
+- Optional, GTA font: the clips already use the bundled Bangers font. For the classic GTA look in English text, the human can install Pricedown (free from typodermicfonts.com). It is picked up automatically. Do not download or install it for them: it is their licence to accept.
 - Re-run the pip line once a week: YouTube changes often and yt-dlp updates follow.
 
 If a winget/brew/apt install needs a new terminal for PATH, say so in one line and re-check. Never spend money or add a card.

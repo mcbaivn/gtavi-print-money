@@ -27,6 +27,7 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/cut.py" jobs/<id> --pick 1 --layout react 
 - `--title-style box`: white band with bold black text on the seam. `--title-style outline`: white text with a thick black outline across the top of the game, for short titles ("Fighting Cops in GTA 6").
 - `--captions bubble`: white speech bubble ("Oh my god!"). `word`: word-by-word captions. `none`: title only.
 - Write the title with `hook-writer` (reaction titles section).
+- Every reaction clip gets the neon gradient border and GTA-style text automatically (see `clip-cutter`, "The GTA look"). Pick the border colours with `--border vice|neon|gold|none`.
 
 ## Rules
 

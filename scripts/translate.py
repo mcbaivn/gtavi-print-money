@@ -84,8 +84,8 @@ def make_voice(lang, text, dest):
     return dest
 
 
-def render(src, s0, e0, layout, cam, ass, mp4, voice_mp3=None):
-    v = video_filter(layout, cam, ass)
+def render(src, s0, e0, layout, cam, ass, mp4, voice_mp3=None, border='vice'):
+    v = video_filter(layout, cam, ass, border=border)
     cmd = [tool("ffmpeg"), "-y", "-v", "error", "-ss", f"{s0:.2f}", "-to", f"{e0:.2f}", "-i", src]
     if voice_mp3:
         dur = float(ffprobe(voice_mp3)["format"]["duration"])
@@ -121,6 +121,7 @@ def main():
     ap.add_argument("--voice", action="store_true")
     ap.add_argument("--layout", choices=["fill", "blur", "facecam"])
     ap.add_argument("--cam"); ap.add_argument("--hook")
+    ap.add_argument("--border", choices=["vice", "neon", "gold", "none"])
     a = ap.parse_args()
     d = Path(a.job); out = d / "edits"
     side = out / f"clip_{a.pick}.json"
@@ -143,12 +144,12 @@ def main():
         h = tr(t, hook) if hook else ""
         tw = translate_words(t, words)
         ass = out / f"clip_{a.pick}_{lang}.ass"
-        ass.write_text(build_ass(tw, s0, e0, h, CAP_Y[layout]), encoding="utf-8")
+        ass.write_text(build_ass(tw, s0, e0, h, CAP_Y[layout], font=meta.get('font', 'auto')), encoding="utf-8")
         mp4 = out / f"clip_{a.pick}_{lang}.mp4"
         mp3 = None
         if a.voice and h:
             mp3 = make_voice(lang, h, Path(tempfile.gettempdir()) / f"clip_{a.pick}_{lang}_hook.mp3")
-        render(cands["source"], s0, e0, layout, cam, ass, mp4, mp3)
+        render(cands["source"], s0, e0, layout, cam, ass, mp4, mp3, border=a.border or meta.get("border", "vice"))
         caps.append(platform_block(lang, h, credit, meta.get("source_url")))
         print(mp4)
     (out / f"clip_{a.pick}_captions.md").write_text("\n".join(caps), encoding="utf-8")

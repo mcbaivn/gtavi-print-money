@@ -1,15 +1,17 @@
 """Cut one candidate into a finished vertical clip.
 
 1080x1920, 30 fps, word-by-word burned captions (slurs and swears masked), hook box in the first seconds,
-loudness normalised to -14 LUFS. Writes jobs/<id>/edits/clip_<n>.mp4 + .json (metadata for check.py).
+loudness normalised to -14 LUFS, animated neon gradient border and GTA-style text (see style.py). Writes jobs/<id>/edits/clip_<n>.mp4 + .json (metadata for check.py).
 
 usage: python cut.py jobs/<id> --pick 1 [--layout fill|blur|facecam|react] [--hook "TEXT"]
                      [--cam auto|x:y:w:h] [--title "TEXT" --title-style box|outline --title-secs 0] [--captions word|bubble|none]
+                     [--border vice|neon|gold|none] [--font auto|bangers|pricedown]
 """
 import argparse, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from common import load_json, run, save_json, tool
+from style import border_graph, font_for, fontsdir_opt
 
 W, H = 1080, 1920
 
@@ -51,17 +53,50 @@ def wrap(text, width):
     return lines + ([cur] if cur else [])
 
 
-# Arial Black has no glyphs for stacked Vietnamese marks (Ắ, Ầ, Ố...): libass would fall back to another
-# font per letter. Arial Bold covers the full Vietnamese set, so switch to it when such text shows up.
-_VI = _re.compile(r"[ĂăĐđƠơƯưẠ-ỹ]")
+def balanced_wrap(text, width):
+    """Same line count as wrap(), but lines of similar length (no lone last word)."""
+    lines = wrap(text, width)
+    n = len(lines)
+    if n > 1:
+        for w in range(max(1, -(-len(text) // n)), width + 1):
+            alt = wrap(text, w)
+            if len(alt) == n:
+                return alt
+    return lines
 
 
-def pick_font(*texts):
-    return "Arial" if any(_VI.search(t or "") for t in texts) else "Arial Black"
+# GTA look: Pricedown when installed (Latin text only), else the bundled Bangers; white letters, thick black
+# outline, purple drop shadow, active word in GTA VI pink; the hook gets a sunset gradient (yellow > orange > pink).
+PINK, ORANGE, YELLOW, PURPLE_SH = "&H00A43FFF", "&H002E9AFF", "&H006AF0FF", "&H00501A3A"
+CAP_SIZE, HOOK_SIZE = 160, 176
+HOOK_TOP, HOOK_LH, HOOK_CHARS = 250, 140, 20
+# capital-letter band (top, bottom) relative to the \an5 anchor, as a fraction of the font size.
+# Measured for Bangers (small caps inside a tall line box); Pricedown's caps fill more of the em.
+CAP_BAND = {"Bangers": (-0.147, 0.293)}
+CAP_BAND_DEFAULT = (-0.30, 0.34)
 
 
-def build_ass(words, s0, e0, hook, cap_y, title=None, caps='word', profanity=False):
-    font = pick_font(hook, title[1] if title else "", " ".join(w.get("w", "") for w in words))
+def gta_hook(hook, end, font="Bangers"):
+    """Hook lines with a 3-band sunset gradient: one outlined base layer + two clipped fill layers per line."""
+    ev = []
+    lines = balanced_wrap(esc(hook).upper(), HOOK_CHARS)
+    pop = "\\fscx92\\fscy92\\t(0,120,\\fscx100\\fscy100)"
+    top, bot = CAP_BAND.get(font, CAP_BAND_DEFAULT)
+    top, bot = top * HOOK_SIZE, bot * HOOK_SIZE
+    third = (bot - top) / 3
+    for i, ln in enumerate(lines):
+        y = HOOK_TOP + i * HOOK_LH
+        pos = f"\\an5\\pos({W // 2},{y})\\fad(0,180){pop}"
+        ev.append(f"Dialogue: 1,{ts(0)},{ts(end)},Hook,,0,0,0,,{{{pos}\\1c{PINK}}}{ln}")
+        b1, b2 = int(y + top + third), int(y + top + 2 * third)
+        for (y1, y2, col) in ((y - HOOK_SIZE, b1, YELLOW), (b1, b2, ORANGE)):
+            ev.append(f"Dialogue: 2,{ts(0)},{ts(end)},Hook,,0,0,0,,"
+                      f"{{{pos}\\bord0\\shad0\\1c{col}\\clip(0,{y1},{W},{y2})}}{ln}")
+    return ev
+
+
+def build_ass(words, s0, e0, hook, cap_y, title=None, caps='word', profanity=False, font='auto'):
+    f = font_for(hook, title[1] if title else "", " ".join(w.get("w", "") for w in words), font=font)
     hdr = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {W}
@@ -70,11 +105,11 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,{font},92,&H00FFFFFF,&H0000E5FF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,7,3,5,60,60,0,1
-Style: Hook,{font},68,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,18,0,8,70,70,170,1
-Style: TitleBox,{font},66,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,1,0,0,5,40,40,0,1
-Style: TitleOut,{font},80,&H00FFFFFF,&H00FFFFFF,&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,9,2,8,50,50,0,1
-Style: Bubble,Arial,58,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,0,0,3,16,0,5,60,60,0,1
+Style: Cap,{f},{CAP_SIZE},&H00FFFFFF,&H00FFFFFF,&H00000000,{PURPLE_SH},0,0,0,0,100,100,2,0,1,10,6,5,60,60,0,1
+Style: Hook,{f},{HOOK_SIZE},&H00FFFFFF,&H00FFFFFF,&H00000000,{PURPLE_SH},0,0,0,0,100,100,2,0,1,12,7,5,60,60,0,1
+Style: TitleBox,{f},100,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,0,0,0,0,100,100,1,0,1,0,0,5,40,40,0,1
+Style: TitleOut,{f},128,&H00FFFFFF,&H00FFFFFF,&H00000000,{PURPLE_SH},0,0,0,0,100,100,2,0,1,9,5,8,50,50,0,1
+Style: Bubble,{f},66,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,0,0,0,0,100,100,1,0,3,16,0,5,60,60,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -100,7 +135,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             parts = []
             for j, x in enumerate(g):
                 t = esc(x["w"].upper())
-                parts.append("{\\c&H0000E5FF&}" + t + "{\\c&H00FFFFFF&}" if j == k else t)
+                parts.append("{\\c" + PINK + "\\fscx108\\fscy108}" + t + "{\\c&H00FFFFFF&\\fscx100\\fscy100}" if j == k else t)
             pop = "{\\fscx112\\fscy112\\t(0,90,\\fscx100\\fscy100)}" if k == 0 else ""
             if caps == 'bubble':
                 if k == 0:
@@ -112,7 +147,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     if title:  # reaction title: (style, text, y, seconds)
         st, text, ty, secs = title
         end = (e0 - s0) if secs <= 0 else secs
-        lines = wrap(esc(text), 26 if st == 'box' else 24)
+        lines = balanced_wrap(esc(text).upper(), 26 if st == 'box' else 22)
         body = '\\N'.join(lines)
         if st == 'box':
             ev.append(f"Dialogue: 2,{ts(0)},{ts(end)},TitleBox,,0,0,0,,{{\\pos({W // 2},{ty})}}{body}")
@@ -120,7 +155,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             ev.append(f"Dialogue: 2,{ts(0)},{ts(end)},TitleOut,,0,0,0,,{{\\pos({W // 2},{ty})\\an8}}{body}")
         hook = ''
     if hook:
-        ev.append(f"Dialogue: 1,{ts(0)},{ts(hook_end)},Hook,,0,0,0,,{{\\fad(0,180)\\fscx92\\fscy92\\t(0,120,\\fscx100\\fscy100)}}{esc(hook)}")
+        ev += gta_hook(hook, hook_end, f)
     return hdr + "\n".join(ev) + "\n"
 
 
@@ -133,7 +168,7 @@ def even(n):
     return int(n) // 2 * 2
 
 
-def video_filter(layout, cam, ass, band=None, cam_side='right', src=None, game_x=None, face_expr=None):
+def video_filter(layout, cam, ass, band=None, cam_side='right', src=None, game_x=None, face_expr=None, border='vice'):
     """Layout + burned-caption filter graph ending in [vo]. Reused by translate.py."""
     if layout == "fill":
         v = f"[0:v]scale=-2:{H},crop={W}:{H}[v]"
@@ -162,7 +197,7 @@ def video_filter(layout, cam, ass, band=None, cam_side='right', src=None, game_x
         v = (f"[0:v]split[a][b];[a]crop=iw*{w}:ih*{h}:iw*{x}:ih*{y},scale={W}:{int(H * 0.38)}:force_original_aspect_ratio=increase,"
              f"crop={W}:{int(H * 0.38)}[cam];[b]scale=-2:{H - int(H * 0.38)},crop={W}:{H - int(H * 0.38)}[game];[cam][game]vstack[v]")
     sub = str(ass).replace("\\", "/").replace(":", "\\:")
-    return v + f";[v]fps=30,subtitles='{sub}'[vo]"
+    return v + ";[v]fps=30[vf];" + border_graph("vf", "vb", border) + f";[vb]subtitles='{sub}'{fontsdir_opt()}[vo]"
 
 
 def game_offset(video, s0, e0, src, cam_box):
@@ -215,6 +250,10 @@ def main():
     ap.add_argument("--title-secs", type=float, default=0, help="0 = whole clip")
     ap.add_argument("--captions", choices=["word", "bubble", "none"], default="word")
     ap.add_argument("--hook", default="")
+    ap.add_argument("--border", choices=["vice", "neon", "gold", "none"], default="vice",
+                    help="animated neon gradient frame (vice = GTA VI sunset colours)")
+    ap.add_argument("--font", choices=["auto", "bangers", "pricedown"], default="auto",
+                    help="GTA-style text: Pricedown if installed (not for Vietnamese), else bundled Bangers")
     ap.add_argument("--allow-profanity", action="store_true", help="keep swear words in captions (slurs are always masked)")
     ap.add_argument("--cam", default="auto", help="auto (find the webcam) or x:y:w:h fractions")
     ap.add_argument("--start", type=float); ap.add_argument("--end", type=float)
@@ -274,21 +313,21 @@ def main():
     ass = out / f"clip_{a.pick}.ass"
     caps = a.captions
     cap_words = words if caps != 'none' else []
-    ass.write_text(build_ass(cap_words, s0, e0, a.hook, cap_y, title=title, caps=caps, profanity=a.allow_profanity), encoding="utf-8")
+    ass.write_text(build_ass(cap_words, s0, e0, a.hook, cap_y, title=title, caps=caps, profanity=a.allow_profanity, font=a.font), encoding="utf-8")
     src = None; gx = None
     if layout == 'react':
         from common import ffprobe
         vs = [x for x in ffprobe(c['source'])['streams'] if x.get('codec_type') == 'video'][0]
         src = (int(vs['width']), int(vs['height']))
         gx = game_offset(c['source'], s0, e0, src, [float(t) for t in cam.split(':')])
-    v = video_filter(layout, cam, ass, band=band, cam_side=side, src=src, game_x=gx, face_expr=face_expr)
+    v = video_filter(layout, cam, ass, band=band, cam_side=side, src=src, game_x=gx, face_expr=face_expr, border=a.border)
     mp4 = out / f"clip_{a.pick}.mp4"
     run([tool("ffmpeg"), "-y", "-v", "error", "-ss", f"{s0:.2f}", "-to", f"{e0:.2f}", "-i", c["source"],
          "-filter_complex", v, "-map", "[vo]", "-map", "0:a?", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
          "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
          "-ar", "48000", "-movflags", "+faststart", str(mp4)])
     info = c.get("info", {})
-    save_json(out / f"clip_{a.pick}.json", {"file": str(mp4), "start": s0, "end": e0, "layout": layout, "hook": a.hook or a.title, "title": a.title, "cam": cam,
+    save_json(out / f"clip_{a.pick}.json", {"file": str(mp4), "start": s0, "end": e0, "layout": layout, "hook": a.hook or a.title, "title": a.title, "cam": cam, "border": a.border, "font": a.font,
                                             "source_url": info.get("webpage_url"), "source_title": info.get("title"),
                                             "source_channel": info.get("channel") or info.get("uploader")})
     print(mp4)

@@ -13,11 +13,11 @@ Run after `clip-cutter` (the clip must already exist as `jobs/<id>/edits/clip_<n
 
 Output in `jobs/<id>/edits/`: `clip_<n>_<lang>.mp4` per language and one `clip_<n>_captions.md` with X, Instagram and TikTok/Shorts captions per language.
 
-- Layout, hook box and loudness match the original cut. Override with `--layout`, `--hook` if needed.
+- Layout, neon border, GTA-style text, hook and loudness match the original cut (read from `clip_<n>.json`); `--border` overrides the frame colours. Override with `--layout`, `--hook` if needed.
 - `--voice` adds a stock text-to-speech voice (edge-tts: es-ES-AlvaroNeural, pt-BR-AntonioNeural, de-DE-ConradNeural, ru-RU-DmitryNeural, vi-VN-NamMinhNeural) that reads the translated hook only, in the first 2.5 seconds, with the original audio ducked under it.
 - Never clone or imitate a real person's or streamer's voice. Stock voices only, and do not present the voiceover as the creator speaking.
 
-- Vietnamese (`vi`): captions and hook automatically switch from Arial Black to Arial Bold, because Arial Black has no glyphs for stacked Vietnamese marks (Ắ, Ầ, Ố...). Vietnamese captions get their own hashtags (#GTA6VietNam, #gamevn). Vietnamese GTA pages are a big audience (MixiGaming streams top the GTA 6 trend list), so `vi` is in the default set.
+- Vietnamese (`vi`): captions and hook always use the bundled Bangers font, which has every Vietnamese letter (Ắ, Ầ, Ố, Ự...); Pricedown has none. Vietnamese captions get their own hashtags (#GTA6VietNam, #gamevn). Vietnamese GTA pages are a big audience (MixiGaming streams top the GTA 6 trend list), so `vi` is in the default set.
 
 Rules:
 

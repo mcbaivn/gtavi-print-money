@@ -42,7 +42,7 @@ Không có cam kết thu nhập. Kết quả phụ thuộc tốc độ, chọn c
 | `moment-finder` | Khoảnh khắc 15–40 giây hay nhất: âm thanh, từ "hype", "most replayed", đỉnh chat |
 | `live-mode` | Ghi stream đang live, tự cắt clip mỗi lần chat bùng nổ |
 | `twitch-reaction` | Clip reaction: mặt streamer trên, game dưới, tiêu đề lớn ở giữa; tự tìm webcam |
-| `clip-cutter` | Clip 1080x1920, phụ đề từng từ, khung hook, −14 LUFS |
+| `clip-cutter` | Clip 1080x1920, viền neon gradient chuyển động, chữ kiểu GTA, phụ đề từng từ, hook gradient hoàng hôn, −14 LUFS |
 | `hook-writer` | 3 lựa chọn hook cho mỗi clip |
 | `rule-check` | Kiểm tra độ dài, định dạng, hashtag, nội dung cấm |
 | `multilang` | Một clip ra nhiều ngôn ngữ: ES, PT, DE, RU, **VI**; có giọng đọc hook |
@@ -53,6 +53,12 @@ Không có cam kết thu nhập. Kết quả phụ thuộc tốc độ, chọn c
 | `learning-loop` | Bảng điểm, mỗi ngày một thử nghiệm, thu nhập từ số liệu thật |
 
 Không có gì được đăng tự động. Bạn duyệt từng bài.
+
+## Phong cách GTA cho mọi clip
+
+- **Viền neon gradient** quanh video, màu xoay chậm, có quầng sáng. `--border vice` (mặc định, hoàng hôn GTA VI), `neon`, `gold` hoặc `none`.
+- **Chữ kiểu GTA**: chữ trắng viền đen dày, bóng tím, từ đang nói đổi màu hồng; hook tô gradient vàng, cam, hồng.
+- **Font**: kèm sẵn Bangers (SIL OFL, đủ dấu tiếng Việt). Nếu bạn tự cài [Pricedown](https://typodermicfonts.com/) (font GTA gốc, miễn phí cho video nhưng không được phát tán), chữ tiếng Anh sẽ tự dùng Pricedown; chữ tiếng Việt vẫn dùng Bangers.
 
 ## Luật cứng
 
@@ -65,7 +71,7 @@ pip install -r requirements.txt
 python scripts/trends.py --query "gta 6" --hours 24
 python scripts/streams.py --query "gta 6"
 python scripts/moments.py "https://www.youtube.com/watch?v=..." --top 8
-python scripts/cut.py jobs/<id> --pick 2 --layout facecam --hook "Không ai để ý chỗ này"
+python scripts/cut.py jobs/<id> --pick 2 --layout facecam --hook "Không ai để ý chỗ này" --border vice
 python scripts/translate.py jobs/<id> --pick 2 --langs vi --voice
 python scripts/check.py jobs/<id>/edits/clip_2.mp4 --campaign campaigns.md
 python scripts/live.py "https://www.youtube.com/watch?v=<live>" --minutes 60
@@ -73,4 +79,4 @@ python scripts/live.py "https://www.youtube.com/watch?v=<live>" --minutes 60
 
 Windows, macOS hoặc Linux, Python 3.10+. Có GPU NVIDIA thì nhận dạng giọng nói nhanh hơn.
 
-Giấy phép MIT, xem [LICENSE](LICENSE).
+Giấy phép MIT, xem [LICENSE](LICENSE). Font Bangers: SIL Open Font License, xem [fonts/OFL-Bangers.txt](fonts/OFL-Bangers.txt).
