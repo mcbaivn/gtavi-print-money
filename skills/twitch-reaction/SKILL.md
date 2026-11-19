@@ -1,6 +1,6 @@
 ---
 name: twitch-reaction
-description: Watch the biggest GTA 6 Twitch streamer and make reaction clips: face on top, game below, big title. Use when the user wants streamer reaction clips, "face on top" clips, Twitch clips, or asks who is streaming GTA 6 right now.
+description: 'Watch the biggest GTA 6 Twitch streamer and make reaction clips: face on top, game below, big title. Use when the user wants streamer reaction clips, "face on top" clips, Twitch clips, or asks who is streaming GTA 6 right now.'
 ---
 
 # Twitch reaction clips

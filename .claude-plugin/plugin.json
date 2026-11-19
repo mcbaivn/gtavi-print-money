@@ -17,5 +17,6 @@
   "skills": [
     "./skills/"
   ],
-  "repository": "https://github.com/mcbaivn/gtavi-print-money"
+  "repository": "https://github.com/mcbaivn/gtavi-print-money",
+  "icon": "./.claude-plugin/icon.png"
 }
