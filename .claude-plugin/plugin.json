@@ -1,0 +1,19 @@
+{
+  "name": "gtavi-print-money",
+  "displayName": "GTAVI Print Money",
+  "version": "0.1.0",
+  "description": "GTAVI Print Money: run a faceless GTA 6 clipping page with the fewest human actions. You approve every post.",
+  "author": {
+    "name": "GTAVI Print Money"
+  },
+  "keywords": [
+    "gta6",
+    "clipping",
+    "video",
+    "shorts",
+    "vietnamese"
+  ],
+  "skills": [
+    "./skills/"
+  ]
+}
